@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NZ Geotechnical Desktop Assessment Tool</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #eef1f5; color: #222; font-size: 14px; }
+
+/* ── Header ── */
+.page-header {
+  background: linear-gradient(135deg, #14325a 0%, #0b1f38 100%);
+  color: white;
+  padding: 18px 28px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 4px solid #c8102e;
+}
+.page-header h1 { font-size: 1.25rem; font-weight: 700; line-height: 1.2; }
+.page-header .sub { font-size: 0.72rem; opacity: 0.72; margin-top: 4px; letter-spacing: 0.3px; }
+.header-pill {
+  background: #c8102e;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 4px 9px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  flex-shrink: 0;
+}
+
+/* ── Layout ── */
+.main { max-width: 920px; margin: 0 auto; padding: 20px 16px; }
+
+/* ── Search card ── */
+.search-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 24px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.09);
+  margin-bottom: 18px;
+}
+.search-card h2 { font-size: 0.95rem; color: #14325a; margin-bottom: 12px; font-weight: 700; }
+.search-row { display: flex; gap: 8px; }
+/* Autocomplete wrapper */
+.ac-wrap { position: relative; flex: 1; }
+.search-row input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid #d5dbe3;
+  border-radius: 7px;
+  font-size: 0.93rem;
+  transition: border-color 0.2s;
+  outline: none;
+}
+.search-row input:focus { border-color: #14325a; }
+/* Dropdown */
+.ac-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: #fff;
+  border: 2px solid #14325a;
+  border-radius: 7px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  z-index: 9999;
+  overflow: hidden;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.ac-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #edf0f4;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  transition: background 0.12s;
+}
+.ac-item:last-child { border-bottom: none; }
+.ac-item:hover, .ac-item.ac-active { background: #e8f0f9; }
+.ac-item .ac-main { font-weight: 600; color: #14325a; }
+.ac-item .ac-sub  { font-size: 0.75rem; color: #8090a0; margin-top: 1px; }
+.ac-loading {
+  padding: 12px 14px;
+  font-size: 0.82rem;
+  color: #8090a0;
+  font-style: italic;
+}
+.ac-none {
+  padding: 12px 14px;
+  font-size: 0.82rem;
+  color: #b04040;
+}
+.btn-primary {
+  background: #14325a;
+  color: #fff;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 7px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.18s;
+}
+.btn-primary:hover { background: #0b1f38; }
+.btn-primary:disabled { background: #aab0ba; cursor: not-allowed; }
+.help-text { font-size: 0.76rem; color: #7a8591; margin-top: 8px; line-height: 1.5; }
+
+/* ── Loading ── */
+.loading { text-align: center; padding: 44px 20px; color: #666; }
+.spinner {
+  display: inline-block;
+  width: 34px; height: 34px;
+  border: 3px solid #d5dbe3;
+  border-top-color: #14325a;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  margin-bottom: 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading p { font-size: 0.85rem; color: #888; }
+
+/* ── Error ── */
+.error-card {
+  background: #fff3f3;
+  border: 1px solid #ffb3b3;
+  border-left: 4px solid #c62828;
+  border-radius: 8px;
+  padding: 14px 18px;
+  color: #b71c1c;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.hidden { display: none !important; }
+
+/* ── Report shell ── */
+.report {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.09);
+  overflow: hidden;
+}
+
+/* ── Report header ── */
+.report-header {
+  background: #14325a;
+  color: #fff;
+  padding: 22px 28px 20px;
+  position: relative;
+}
+.report-title { font-size: 1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; }
+.report-subtitle { font-size: 0.75rem; opacity: 0.72; margin-top: 4px; }
+.report-meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 16px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 7px;
+  padding: 12px 16px;
+}
+.meta-lbl { font-size: 0.65rem; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
+.meta-val { font-size: 0.82rem; font-weight: 700; }
+.btn-print {
+  position: absolute; top: 20px; right: 24px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  padding: 5px 12px;
+  border-radius: 5px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.btn-print:hover { background: rgba(255,255,255,0.25); }
+
+/* ── Site class banner ── */
+.sc-banner {
+  background: #e8f0f9;
+  border-left: 6px solid #14325a;
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+.sc-value {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: #14325a;
+  line-height: 1;
+  font-style: italic;
+}
+.sc-info { flex: 1; }
+.sc-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.8px; color: #5a7190; }
+.sc-desc { font-size: 0.9rem; font-weight: 700; color: #14325a; margin-top: 3px; }
+.sc-standard { font-size: 0.73rem; color: #7a8591; margin-top: 3px; }
+
+/* ── Map ── */
+#map { height: 240px; width: 100%; }
+
+/* ── Sections ── */
+.section {
+  padding: 18px 28px;
+  border-bottom: 1px solid #edf0f4;
+}
+.section:last-child { border-bottom: none; }
+.section-title {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: #c8102e;
+  font-weight: 800;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-title::after { content: ''; flex: 1; height: 1px; background: #edf0f4; }
+
+/* ── Info grid ── */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.info-item { background: #f7f9fc; border-radius: 7px; padding: 10px 14px; }
+.info-lbl { font-size: 0.67rem; text-transform: uppercase; letter-spacing: 0.4px; color: #8090a0; margin-bottom: 4px; }
+.info-val { font-size: 0.88rem; font-weight: 600; color: #1a2533; line-height: 1.3; }
+.info-val.mono { font-family: 'Courier New', monospace; font-size: 0.82rem; }
+.info-val.cap { text-transform: capitalize; }
+
+/* ── Geology detail box ── */
+.geo-detail {
+  background: #f2f6fb;
+  border-radius: 7px;
+  padding: 14px 16px;
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: #3a4a5c;
+  line-height: 1.6;
+}
+.geo-detail strong { color: #14325a; }
+
+/* ── Risk rows ── */
+.risk-rows { display: flex; flex-direction: column; gap: 0; }
+.risk-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f2f5;
+}
+.risk-row:last-child { border-bottom: none; }
+.risk-left { flex-shrink: 0; width: 140px; }
+.risk-cat { font-size: 0.67rem; text-transform: uppercase; letter-spacing: 0.4px; color: #8090a0; margin-bottom: 5px; font-weight: 700; }
+.badge {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
+}
+.bg-negligible  { background: #e8f5e9; color: #1b5e20; }
+.bg-low         { background: #f1f8e9; color: #33691e; }
+.bg-low-mod     { background: #fff8e1; color: #e65100; }
+.bg-moderate    { background: #fff3e0; color: #bf360c; }
+.bg-mod-high    { background: #fce4ec; color: #880e4f; }
+.bg-high        { background: #ffebee; color: #b71c1c; }
+.bg-check       { background: #e3f2fd; color: #0d47a1; }
+.bg-fault       { background: #fce4ec; color: #880e4f; }
+.bg-no-fault    { background: #e8f5e9; color: #1b5e20; }
+.risk-right { flex: 1; font-size: 0.82rem; color: #3d4f60; line-height: 1.55; }
+
+/* ── Site class table ── */
+.sc-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 10px; }
+.sc-table th { background: #14325a; color: #fff; padding: 7px 12px; text-align: left; font-weight: 700; }
+.sc-table td { padding: 7px 12px; border-bottom: 1px solid #edf0f4; vertical-align: top; }
+.sc-table tr:nth-child(even) td { background: #f7f9fc; }
+.sc-table tr.active-row td { background: #fff3cd; font-weight: 700; }
+
+/* ── Foundation box ── */
+.found-box {
+  background: #f2f6fb;
+  border-radius: 7px;
+  padding: 16px 18px;
+}
+.found-type { font-size: 1rem; font-weight: 800; color: #14325a; margin-bottom: 4px; }
+.found-bearing { font-size: 0.8rem; color: #3d4f60; margin-bottom: 8px; }
+.found-bearing strong { color: #14325a; }
+.found-notes { font-size: 0.8rem; color: #3d4f60; line-height: 1.6; }
+.good-ground-yes { color: #1b5e20; font-weight: 700; }
+.good-ground-no  { color: #b71c1c; font-weight: 700; }
+
+/* ── Requirements list ── */
+.req-list { list-style: none; padding: 0; }
+.req-list li {
+  padding: 9px 0 9px 24px;
+  position: relative;
+  font-size: 0.82rem;
+  color: #3d4f60;
+  line-height: 1.55;
+  border-bottom: 1px solid #f5f6f8;
+}
+.req-list li:last-child { border-bottom: none; }
+.req-list li::before { content: '→'; position: absolute; left: 0; color: #c8102e; font-weight: 900; }
+
+/* ── Confidence tag ── */
+.conf-tag {
+  display: inline-block;
+  font-size: 0.62rem;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-left: 7px;
+  vertical-align: middle;
+}
+.conf-high   { background: #e8f5e9; color: #2e7d32; }
+.conf-medium { background: #fff8e1; color: #e65100; }
+.conf-low    { background: #ffebee; color: #c62828; }
+
+/* ── Disclaimer ── */
+.disclaimer {
+  background: #fffde7;
+  border: 1px solid #fff176;
+  border-left: 4px solid #f9a825;
+  border-radius: 7px;
+  padding: 14px 16px;
+  font-size: 0.78rem;
+  color: #555;
+  line-height: 1.65;
+}
+.disclaimer strong { color: #333; }
+
+/* ── References ── */
+.ref-list { font-size: 0.78rem; color: #5a6a7a; padding-left: 18px; line-height: 2; }
+
+/* ── Data source footnote ── */
+.footnote { font-size: 0.7rem; color: #8a9ab0; margin-top: 8px; }
+.footnote a { color: #14325a; }
+
+/* ── No data warning ── */
+.no-data-warn {
+  background: #fff3e0;
+  border: 1px solid #ffe0b2;
+  border-left: 4px solid #e65100;
+  border-radius: 7px;
+  padding: 14px 16px;
+  font-size: 0.82rem;
+  color: #6d3a0a;
+  line-height: 1.55;
+}
+
+/* ── Print ── */
+@media print {
+  body { background: #fff; }
+  .search-card, .btn-print { display: none !important; }
+  .report { box-shadow: none; }
+  .main { padding: 0; }
+  #map { height: 180px; }
+}
+
+@media (max-width: 600px) {
+  .info-grid { grid-template-columns: 1fr; }
+  .report-meta { grid-template-columns: 1fr 1fr; }
+  .sc-banner { gap: 14px; }
+  .sc-value { font-size: 2rem; }
+  .risk-left { width: 120px; }
+  .section { padding: 14px 16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div style="flex:1">
+    <h1>NZ Geotechnical Desktop Assessment</h1>
+    <div class="sub">Building Act 2004 · NZS 4404:2010 · NZS 1170.5:2004 · NZS 3604:2011 · Data: GNS Science QMAP</div>
+  </div>
+  <span class="header-pill">Preliminary</span>
+</div>
+
+<div class="main">
+
+  <div class="search-card">
+    <h2>🔍 Enter Site Address</h2>
+    <div class="search-row">
+      <div class="ac-wrap">
+        <input type="text" id="addressInput"
+          placeholder="e.g. 195 Thorndon Quay, Wellington 6011"
+          autocomplete="off"
+          oninput="onAddressInput(event)"
+          onkeydown="onAddressKeydown(event)">
+        <div id="acDropdown" class="ac-dropdown" style="display:none"></div>
+      </div>
+      <button class="btn-primary" id="searchBtn" onclick="generateReport()">Generate Report</button>
+    </div>
+    <p class="help-text">
+      Enter any New Zealand address. The tool queries GNS Science QMAP geological data (1:250,000 scale) and generates a
+      preliminary geotechnical desktop assessment aligned with the Building Act 2004, NZS 4404:2010, and NZS 1170.5:2004.
+      This is a <strong>screening tool only</strong> — not a substitute for a site investigation.
+    </p>
+  </div>
+
+  <div id="loadingDiv" class="loading hidden">
+    <div class="spinner"></div>
+    <p id="loadingMsg">Geocoding address…</p>
+  </div>
+
+  <div id="errorDiv" class="error-card hidden"></div>
+
+  <div id="report" class="report hidden"></div>
+
+</div><!-- /main -->
+
+<script>
+// ─────────────────────────────────────────────
+//  Helpers
+// ─────────────────────────────────────────────
+let leafletMap = null;
+
+function setLoading(msg) {
+  document.getElementById('loadingMsg').textContent = msg;
+  document.getElementById('loadingDiv').classList.remove('hidden');
+}
+function hideLoading() {
+  document.getElementById('loadingDiv').classList.add('hidden');
+}
+function showError(msg) {
+  const el = document.getElementById('errorDiv');
+  el.innerHTML = `<strong>Error:</strong> ${msg}`;
+  el.classList.remove('hidden');
+}
+function hideError() {
+  document.getElementById('errorDiv').classList.add('hidden');
+}
+function generateRef() {
+  const d = new Date();
+  return `GDA-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}-${Math.floor(Math.random()*9000)+1000}`;
+}
+function fmtDate() {
+  return new Date().toLocaleDateString('en-NZ', { day:'numeric', month:'long', year:'numeric' });
+}
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000, toRad = x => x*Math.PI/180;
+  const dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ─────────────────────────────────────────────
+//  1. Autocomplete + Geocoding via Nominatim
+// ─────────────────────────────────────────────
+let acTimer   = null;
+let acResults = [];   // [{display_name, lat, lon, address}]
+let acIndex   = -1;   // keyboard-selected index
+let selectedResult = null; // the result chosen from the dropdown
+
+function onAddressInput(e) {
+  selectedResult = null; // clear selection when user types again
+  clearTimeout(acTimer);
+  const val = e.target.value.trim();
+  if (val.length < 3) { closeDropdown(); return; }
+  acTimer = setTimeout(() => fetchSuggestions(val), 280);
+}
+
+function onAddressKeydown(e) {
+  const dd = document.getElementById('acDropdown');
+  if (dd.style.display === 'none') {
+    if (e.key === 'Enter') generateReport();
+    return;
+  }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    acIndex = Math.min(acIndex + 1, acResults.length - 1);
+    renderDropdown();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    acIndex = Math.max(acIndex - 1, 0);
+    renderDropdown();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (acIndex >= 0 && acResults[acIndex]) {
+      selectResult(acResults[acIndex]);
+    } else {
+      closeDropdown();
+      generateReport();
+    }
+  } else if (e.key === 'Escape') {
+    closeDropdown();
+  }
+}
+
+async function fetchSuggestions(query) {
+  const dd = document.getElementById('acDropdown');
+  dd.style.display = 'block';
+  dd.innerHTML = '<div class="ac-loading">Searching addresses…</div>';
+  acResults = []; acIndex = -1;
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=6&countrycodes=nz&addressdetails=1`;
+    const r = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    acResults = data;
+    renderDropdown();
+  } catch {
+    dd.innerHTML = '<div class="ac-none">Could not fetch suggestions — check your connection.</div>';
+  }
+}
+
+function renderDropdown() {
+  const dd = document.getElementById('acDropdown');
+  if (!acResults.length) {
+    dd.innerHTML = '<div class="ac-none">No NZ addresses found. Try adding suburb or city.</div>';
+    return;
+  }
+  dd.innerHTML = acResults.map((r, i) => {
+    const addr = r.address || {};
+    // Build a clean short label (road + suburb/city) and a longer secondary line
+    const parts = [addr.road, addr.suburb, addr.city || addr.town || addr.village, addr.state_district].filter(Boolean);
+    const main  = parts.slice(0, 2).join(', ') || r.display_name.split(',')[0];
+    const sub   = r.display_name;
+    const active = i === acIndex ? ' ac-active' : '';
+    return `<div class="ac-item${active}" data-idx="${i}" onmousedown="selectResult(acResults[${i}])">
+      <div class="ac-main">${main}</div>
+      <div class="ac-sub">${sub}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectResult(result) {
+  selectedResult = result;
+  document.getElementById('addressInput').value = result.display_name;
+  closeDropdown();
+  generateReport();
+}
+
+function closeDropdown() {
+  const dd = document.getElementById('acDropdown');
+  dd.style.display = 'none';
+  acIndex = -1;
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.ac-wrap')) closeDropdown();
+});
+
+async function geocode(address) {
+  // If the user selected a result from the dropdown, use it directly (no extra request)
+  if (selectedResult && selectedResult.display_name === address) {
+    return selectedResult;
+  }
+  // Otherwise fall back to a fresh search
+  const q = encodeURIComponent(address);
+  const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=3&countrycodes=nz&addressdetails=1`;
+  const r = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!r.ok) throw new Error('Geocoding service unavailable. Check your internet connection.');
+  const data = await r.json();
+  if (!data.length) throw new Error('Address not found in New Zealand. Try adding the suburb or city name.');
+  return data[0];
+}
+
+// ─────────────────────────────────────────────
+//  2. GNS Science QMAP WFS query
+// ─────────────────────────────────────────────
+async function queryGeology(lat, lon) {
+  const layers = [
+    { id: 'gns:NZL_GNS_250K_geological_units_scale500k', label: 'QMAP 1:250,000' },
+    { id: 'gns:NZL_GNS_1M_geological_units',             label: 'National 1:1,000,000' }
+  ];
+  const deltas = [0.002, 0.01, 0.05]; // ~200m, 1km, 5km radius
+  const base = 'https://maps.gns.cri.nz/geology/wfs';
+
+  for (const layer of layers) {
+    for (const delta of deltas) {
+      const bbox = `${lon-delta},${lat-delta},${lon+delta},${lat+delta},EPSG:4326`;
+      const url = `${base}?service=WFS&version=1.0.0&request=GetFeature&typeName=${layer.id}&outputFormat=application/json&bbox=${bbox}`;
+      try {
+        const r = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!r.ok) continue;
+        const d = await r.json();
+        if (d.features && d.features.length > 0) {
+          // Pick the feature whose centroid is closest to the query point
+          let best = d.features[0];
+          if (d.features.length > 1) {
+            let minDist = Infinity;
+            for (const f of d.features) {
+              const bbox2 = f.bbox || [];
+              if (bbox2.length === 4) {
+                const clat = (bbox2[1]+bbox2[3])/2, clon = (bbox2[0]+bbox2[2])/2;
+                const dist = haversine(lat, lon, clat, clon);
+                if (dist < minDist) { minDist = dist; best = f; }
+              }
+            }
+          }
+          return { feature: best, label: layer.label };
+        }
+      } catch(e) { /* try next */ }
+    }
+  }
+  return null; // CORS or no coverage
+}
+
+// ─────────────────────────────────────────────
+//  3. Nearby faults query
+// ─────────────────────────────────────────────
+async function queryFaults(lat, lon) {
+  const delta = 0.045; // ~5 km
+  const bbox = `${lon-delta},${lat-delta},${lon+delta},${lat+delta},EPSG:4326`;
+  const url = `https://maps.gns.cri.nz/geology/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=gns:NZL_GNS_250K_faults_plotrank&outputFormat=application/json&bbox=${bbox}`;
+  try {
+    const r = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.features || [];
+  } catch(e) { return null; }
+}
+
+// ─────────────────────────────────────────────
+//  4. Geotechnical interpretation engine
+// ─────────────────────────────────────────────
+function interpret(props) {
+  // Normalise fields (handle different case in 1M vs 250K layers)
+  const get = (...keys) => { for (const k of keys) if (props[k]) return props[k]; return ''; };
+  const rockClass   = get('rock_class','ROCK_CLASS','rock_type').toLowerCase();
+  const mainRock    = get('main_rock','MAIN_ROCK','lithology').toLowerCase();
+  const subRocks    = get('sub_rocks','SUB_ROCKS').toLowerCase();
+  const description = get('descriptio','DESCRIPTIO','description').toLowerCase();
+  const stratAge    = get('strat_age','STRAT_AGE','age').toLowerCase();
+  const allText     = rockClass + ' ' + mainRock + ' ' + subRocks + ' ' + description;
+
+  const absMin = parseFloat(get('abs_min','ABS_MIN')) || 0;
+  const absMax = parseFloat(get('abs_max','ABS_MAX')) || 0;
+
+  // ── Age classification ──
+  const isHolocene = (
+    absMin < 0.012 && (absMax < 0.05 || absMax === 0) ||
+    /^h\b/.test(stratAge) || stratAge === 'qh'
+  );
+  const isQuaternary = (
+    isHolocene || absMin < 2.58 ||
+    /^q/.test(stratAge) || /^lq|^mq|^eq/.test(stratAge)
+  );
+  const isPleistocene = isQuaternary && !isHolocene;
+
+  let ageName;
+  if (isHolocene)       ageName = 'Holocene (< 11,700 years)';
+  else if (isPleistocene) ageName = 'Pleistocene (0.012 – 2.58 Ma)';
+  else if (absMin < 5.33)  ageName = 'Pliocene (2.58 – 5.33 Ma)';
+  else if (absMin < 23.03) ageName = 'Miocene (5.33 – 23.03 Ma)';
+  else if (absMin < 33.9)  ageName = 'Oligocene (23.03 – 33.9 Ma)';
+  else if (absMin < 66)    ageName = 'Eocene – Paleocene (33.9 – 66 Ma)';
+  else if (absMin > 0)     ageName = `Pre-Cretaceous / Mesozoic (> 66 Ma)`;
+  else                     ageName = 'Age not specified';
+
+  // ── Material flags ──
+  const isPeat      = /peat|bog|swamp|organic|mire/.test(allText);
+  const isClay      = /\bclay\b|estuarin|tidal\s*flat|lacustrin|mudflat/.test(allText);
+  const isSilt      = /\bsilt\b|loess/.test(allText);
+  const isSand      = /\bsand\b/.test(allText);
+  const isGravel    = /gravel|terrace\s*deposit|cobble|alluvial\s*fan|outwash/.test(allText);
+  const isAlluvium  = /alluvium|alluvial|fluvial|\briver\b/.test(allText);
+  const isCoastal   = /estuarin|beach|dune|coastal|marine\s*sand|tidal/.test(allText);
+  const isVolcanic  = /volcanic|basalt|andesite|rhyolite|tuff|scoria|ignimbrite/.test(allText) || /volcanic/.test(rockClass);
+  const isHardRock  = /igneous|metamorphic|plutonic/.test(rockClass);
+  const isSedRock   = /sediment/.test(rockClass) && !/unconsolidated/.test(rockClass);
+  const isUncon     = /unconsolidated/.test(rockClass);
+  const isMudstone  = /mudstone|claystone|argillite/.test(allText);
+  const isSandstone = /sandstone|limestone|greywacke|turbidite|calcarenite/.test(allText);
+  const isCrystalline = /granite|gabbro|diorite|dolerite|gneiss|schist|marble/.test(allText);
+
+  // ── NZS 1170.5:2004 Site Subsoil Class ──
+  let siteClass, siteClassDesc, siteClassConf;
+
+  if (isPeat) {
+    siteClass = 'F'; siteClassConf = 'High';
+    siteClassDesc = 'Peaty / organic soils — site-specific geotechnical study required per NZS 1170.5 cl. 3.1.3.4';
+
+  } else if (isHardRock && isCrystalline) {
+    siteClass = 'A/B'; siteClassConf = 'Medium';
+    siteClassDesc = 'Strong crystalline rock (granite, schist, gneiss, greywacke)';
+
+  } else if (isHardRock) {
+    siteClass = 'B'; siteClassConf = 'Medium';
+    siteClassDesc = 'Competent igneous or metamorphic rock';
+
+  } else if (isVolcanic) {
+    siteClass = 'B'; siteClassConf = 'Low';
+    siteClassDesc = 'Volcanic rock — assess for weathered horizons, scoria, or ash layers';
+
+  } else if (isHolocene || (isUncon && isHolocene)) {
+    if (isClay)          { siteClass = 'E'; siteClassConf = 'Medium'; siteClassDesc = 'Very soft Holocene clay / estuarine / tidal flat deposits'; }
+    else if (isSilt)     { siteClass = 'D/E'; siteClassConf = 'Medium'; siteClassDesc = 'Recent silt / loess — soft to medium stiff'; }
+    else if (isSand || isGravel || isAlluvium || isCoastal)
+                         { siteClass = 'D'; siteClassConf = 'Medium'; siteClassDesc = 'Recent loose to medium-dense granular alluvial / coastal deposits'; }
+    else                 { siteClass = 'D'; siteClassConf = 'Low'; siteClassDesc = 'Holocene deposits — character to be confirmed by site investigation'; }
+
+  } else if (isPleistocene) {
+    if (isGravel || isAlluvium)
+                         { siteClass = 'C'; siteClassConf = 'Medium'; siteClassDesc = 'Dense Pleistocene terrace gravels / alluvium'; }
+    else if (isClay || isSilt)
+                         { siteClass = 'C/D'; siteClassConf = 'Low'; siteClassDesc = 'Older Quaternary fine-grained soils — likely stiff but variable'; }
+    else                 { siteClass = 'C'; siteClassConf = 'Low'; siteClassDesc = 'Older Quaternary deposits — generally dense/stiff'; }
+
+  } else if (isSedRock || absMin >= 2.58) {
+    if (isMudstone)      { siteClass = 'C'; siteClassConf = 'Low'; siteClassDesc = 'Weak sedimentary rock (mudstone / siltstone) — weathered zone may be Class D'; }
+    else if (isSandstone){ siteClass = 'B/C'; siteClassConf = 'Low'; siteClassDesc = 'Indurated sedimentary rock (sandstone / limestone / greywacke)'; }
+    else                 { siteClass = 'C'; siteClassConf = 'Low'; siteClassDesc = 'Tertiary–Mesozoic sedimentary sequence'; }
+
+  } else {
+    siteClass = 'C'; siteClassConf = 'Low';
+    siteClassDesc = 'Insufficient data — field investigation required to determine class';
+  }
+
+  // ── Liquefaction susceptibility ──
+  let liqRisk, liqBadgeClass, liqDesc;
+  const isRockSite = ['A/B','A','B'].some(c => siteClass.startsWith(c));
+
+  if (isPeat) {
+    liqRisk = 'Not Applicable'; liqBadgeClass = 'bg-mod-high';
+    liqDesc = 'Organic / peaty soils do not liquefy classically but are highly compressible and may undergo large settlements during earthquake loading. Mandatory site-specific assessment.';
+  } else if (isRockSite) {
+    liqRisk = 'Negligible'; liqBadgeClass = 'bg-negligible';
+    liqDesc = 'Rock sites are not susceptible to liquefaction.';
+  } else if (isHolocene) {
+    if (isClay) {
+      liqRisk = 'Low–Moderate'; liqBadgeClass = 'bg-low-mod';
+      liqDesc = 'Cohesive clays are generally not liquefiable but sensitive clays may exhibit cyclic softening and strength loss. Plasticity and sensitivity testing recommended.';
+    } else if (isSand || isAlluvium || isCoastal || isGravel) {
+      liqRisk = 'High'; liqBadgeClass = 'bg-high';
+      liqDesc = 'Young loose to medium-dense granular deposits (sands, alluvium, coastal sands) have HIGH susceptibility to liquefaction. Quantitative CPT/SPT-based triggering assessment is required per MBIE Guidance (2017) and NZS 1170.5.';
+    } else if (isSilt) {
+      liqRisk = 'Moderate–High'; liqBadgeClass = 'bg-mod-high';
+      liqDesc = 'Non-plastic silts and loessial soils present moderate–high liquefaction risk. Detailed CPT-based investigation required to assess fines content, plasticity, and saturation.';
+    } else {
+      liqRisk = 'Moderate–High'; liqBadgeClass = 'bg-mod-high';
+      liqDesc = 'Holocene deposits present elevated susceptibility. Material characterisation by a geotechnical engineer is required to quantify risk.';
+    }
+  } else if (isPleistocene) {
+    liqRisk = 'Low–Moderate'; liqBadgeClass = 'bg-low-mod';
+    liqDesc = 'Older Quaternary deposits are generally of lower liquefaction susceptibility than Holocene materials. Localised saturated loose zones may still present risk and should be assessed where present.';
+  } else {
+    liqRisk = 'Low'; liqBadgeClass = 'bg-low';
+    liqDesc = 'Pre-Quaternary materials are generally not susceptible to liquefaction. Deeply weathered near-surface horizons should be evaluated at foundation level.';
+  }
+
+  // ── NZS 3604 Good Ground & Foundation Guidance ──
+  let foundType, bearingCap, isGoodGround, foundNotes;
+  if (['A/B','B'].some(c => siteClass.startsWith(c))) {
+    isGoodGround = true; foundType = 'Shallow foundations';
+    bearingCap = '≥ 300 kPa — Good Ground (NZS 3604:2011)';
+    foundNotes = 'Shallow strip, pad, or raft foundations are generally suitable. Confirm weathered rock depth and check for near-surface voids in volcanic terrain. Standard NZS 3604:2011 prescriptive foundation design may apply.';
+  } else if (siteClass === 'B/C') {
+    isGoodGround = true; foundType = 'Shallow foundations';
+    bearingCap = '200 – 500 kPa (indicative)';
+    foundNotes = 'Shallow foundations likely suitable. Verify by site investigation. May qualify as Good Ground under NZS 3604 depending on weathering depth. Foundation design confirmation by geotechnical engineer recommended.';
+  } else if (siteClass === 'C') {
+    isGoodGround = true; foundType = 'Shallow foundations';
+    bearingCap = '150 – 300 kPa (indicative)';
+    foundNotes = 'Shallow foundations are likely viable subject to site-specific verification. Dense Pleistocene gravels typically meet the NZS 3604 Good Ground threshold. Weaker materials (soft rock, weathered profiles) require bearing capacity confirmation.';
+  } else if (siteClass === 'C/D') {
+    isGoodGround = false; foundType = 'Shallow foundations (with caution)';
+    bearingCap = '100 – 200 kPa (variable)';
+    foundNotes = 'Shallow foundations may be viable on the stiffer portions of the profile but significant variability is likely. Geotechnical investigation essential. Deeper competent strata may require pad footings or ground improvement.';
+  } else if (siteClass === 'D' || siteClass === 'D/E') {
+    isGoodGround = false; foundType = 'Shallow or deep foundations';
+    bearingCap = '50 – 150 kPa (soft / loose soils)';
+    foundNotes = 'Shallow foundations may be possible on competent near-surface materials but deep foundations (piles) or engineered ground improvement are frequently required. Site investigation by a Chartered Professional Engineer (geotechnical) is essential.';
+  } else {
+    isGoodGround = false; foundType = 'Deep foundations (piles) likely required';
+    bearingCap = '< 50 kPa (very soft / organic soils)';
+    foundNotes = 'Shallow foundations are generally unsuitable. Pile foundations to competent strata or specialist ground improvement (stone columns, dynamic compaction, etc.) are required. Site-specific geotechnical investigation and foundation design by a CPEng is mandatory prior to building consent.';
+  }
+
+  // ── Further investigation requirements ──
+  const reqs = [];
+  if (!isGoodGround) {
+    reqs.push('Site-specific geotechnical investigation (boreholes, CPT, or test pits) required before building or subdivision consent (Building Act 2004 s72; NZS 4404:2010 cl. 5.3).');
+  }
+  if (liqRisk === 'High' || liqRisk === 'Moderate–High') {
+    reqs.push('Quantitative liquefaction triggering and consequence assessment (LPI, LSN, or settlement) per MBIE Guidance on Geotechnical Earthquake Engineering for Liquefaction (2017).');
+  }
+  if (siteClass === 'F') {
+    reqs.push('Site-specific seismic hazard analysis required per NZS 1170.5:2004 cl. 3.1.3.4 (Class F sites).');
+  }
+  reqs.push('Confirm NZS 1170.5:2004 seismic design parameters (PGA, Sp, return period) with the relevant territorial authority; check for site-specific seismic hazard studies.');
+  reqs.push('Active fault investigation using the New Zealand Active Faults Database (NZAFD) and assessment of setback distances per NZS 8510:2023 / Fault Avoidance Guidelines if fault traces exist within 20 km.');
+  reqs.push('Slope stability assessment per NZS 4404:2010 Part 5 if slope gradient exceeds 1:5 (11°) or the site is downslope of an unstable face. Check NZ Landslide Database (landslides.gns.cri.nz).');
+  reqs.push('Groundwater assessment including seasonal fluctuations; drainage design per NZS 4404:2010 cl. 6.3 to maintain groundwater below foundation level.');
+  reqs.push('Check territorial authority Land Information Memorandum (LIM) for natural hazard overlays, prior consents, and any special geotechnical requirements for the zone (RMA s106; Building Act 2004 s72).');
+  if (!isGoodGround) {
+    reqs.push('Foundation design report by a Chartered Professional Engineer (CPEng) with geotechnical experience, holding professional indemnity insurance of at least $1,000,000, required for building consent submission.');
+  }
+
+  return { ageName, siteClass, siteClassDesc, siteClassConf, liqRisk, liqBadgeClass, liqDesc, foundType, bearingCap, isGoodGround, foundNotes, reqs };
+}
+
+// ─────────────────────────────────────────────
+//  5. Map initialisation
+// ─────────────────────────────────────────────
+function initMap(lat, lon) {
+  if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+  leafletMap = L.map('map').setView([lat, lon], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 19
+  }).addTo(leafletMap);
+  // GNS QMAP WMS overlay
+  L.tileLayer.wms('https://maps.gns.cri.nz/geology/wms', {
+    layers: 'gns:NZL_GNS_250K_geological_units_scale500k',
+    format: 'image/png', transparent: true, opacity: 0.45,
+    attribution: '© GNS Science (CC-BY 3.0 NZ)'
+  }).addTo(leafletMap);
+  // Site marker
+  const icon = L.divIcon({
+    html: `<div style="width:16px;height:16px;background:#c8102e;border:3px solid #fff;
+           border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.45)"></div>`,
+    iconSize: [16,16], iconAnchor: [8,8], className: ''
+  });
+  L.marker([lat, lon], { icon }).addTo(leafletMap)
+    .bindPopup('<strong>Site Location</strong>').openPopup();
+}
+
+// ─────────────────────────────────────────────
+//  6. NZS 1170.5 site class table
+// ─────────────────────────────────────────────
+function siteClassTable(activeSc) {
+  const classes = [
+    ['A', 'Strong rock', 'Vs > 1500 m/s, Cu ≥ 1 MPa', 'Lowest seismic demand'],
+    ['B', 'Rock', 'Vs > 360 m/s, depth to rock ≤ 3 m', 'Low seismic demand'],
+    ['C', 'Shallow soil', 'Vs 180–360 m/s or depth to rock 3–20 m', 'Moderate demand'],
+    ['D', 'Deep / soft soil', 'Vs ≤ 180 m/s, depth > 20 m, or Cu ≤ 50 kPa', 'High demand'],
+    ['E', 'Very soft soil', 'Cu ≤ 12.5 kPa for ≥ 10 m depth', 'Very high demand'],
+    ['F', 'Site-specific', 'Liquefiable soils, peat, quick clay', 'Mandatory special study'],
+  ];
+  const norm = activeSc.replace('/','');
+  const rows = classes.map(([c,n,criteria,note]) => {
+    const active = activeSc.includes(c) ? ' class="active-row"' : '';
+    return `<tr${active}><td><strong>${c}</strong></td><td>${n}</td><td>${criteria}</td><td>${note}</td></tr>`;
+  }).join('');
+  return `<table class="sc-table">
+    <thead><tr><th>Class</th><th>Description</th><th>Criteria</th><th>Engineering Implication</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ─────────────────────────────────────────────
+//  7. Build report HTML
+// ─────────────────────────────────────────────
+function buildReport(refNo, date, inputAddr, displayAddr, lat, lon, geolResult, faults) {
+  const hasGeo = !!geolResult;
+  const props  = hasGeo ? geolResult.feature.properties : {};
+  const layer  = hasGeo ? geolResult.label : '—';
+  const gt     = hasGeo ? interpret(props) : null;
+
+  // Raw geology fields
+  const stratUnit = props.strat_unit || props.formation_ || props.key_name || '—';
+  const mainRock  = props.main_rock  || props.MAIN_ROCK  || '—';
+  const subRocks  = props.sub_rocks  || props.SUB_ROCKS  || '—';
+  const rockClass = props.rock_class || props.ROCK_CLASS || '—';
+  const unitCode  = props.code       || props.unit_code  || props.CODE || '—';
+  const description = props.descriptio || props.DESCRIPTIO || '';
+  const qmapSheet = props.qmap_name  || props.QMAP_NAME  || '—';
+  const absMin    = props.abs_min    || props.ABS_MIN    || '—';
+  const absMax    = props.abs_max    || props.ABS_MAX    || '—';
+
+  const ageName   = gt ? gt.ageName : '—';
+  const siteClass = gt ? gt.siteClass : '?';
+  const scDesc    = gt ? gt.siteClassDesc : 'Geological data not retrieved — cannot classify';
+  const scConf    = gt ? gt.siteClassConf : 'Low';
+
+  const faultCount = faults ? faults.length : null;
+  const faultBadge = faultCount === null   ? `<span class="badge bg-check">Data unavailable</span>` :
+                     faultCount === 0      ? `<span class="badge bg-no-fault">None within ~5 km</span>` :
+                                             `<span class="badge bg-fault">${faultCount} trace(s) within ~5 km</span>`;
+  const faultText  = faultCount === null   ? 'Fault query failed (network/CORS). Query the NZAFD directly at maps.gns.cri.nz.' :
+                     faultCount === 0      ? 'No fault traces identified within ~5 km in the QMAP 1:250K dataset. Note: this dataset includes both active and inactive faults. A dedicated NZAFD (maps.gns.cri.nz) check is still required for building consent.' :
+                                             `${faultCount} fault trace(s) mapped within ~5 km in QMAP 1:250K data. QMAP faults include both active and inactive traces. A dedicated New Zealand Active Faults Database (NZAFD) investigation and setback assessment per NZS 8510:2023 is required.`;
+
+  const liqRisk   = gt ? gt.liqRisk        : '—';
+  const liqBadge  = gt ? gt.liqBadgeClass  : 'bg-check';
+  const liqDesc   = gt ? gt.liqDesc        : '';
+
+  const foundType = gt ? gt.foundType   : '—';
+  const bearing   = gt ? gt.bearingCap  : '—';
+  const isGG      = gt ? gt.isGoodGround : false;
+  const foundNotes = gt ? gt.foundNotes : 'Geotechnical investigation required.';
+  const ggLabel   = isGG
+    ? '<span class="good-ground-yes">✓ Likely meets Good Ground criteria (NZS 3604:2011) — confirm by investigation</span>'
+    : '<span class="good-ground-no">✗ Does not meet standard Good Ground definition — specific foundation design required</span>';
+
+  const reqHTML = gt
+    ? gt.reqs.map(r => `<li>${r}</li>`).join('')
+    : '<li>Full geotechnical site investigation required before any consent application.</li>';
+
+  const geoBlock = hasGeo ? `
+    <div class="info-grid">
+      <div class="info-item"><div class="info-lbl">Stratigraphic Unit</div><div class="info-val">${stratUnit}</div></div>
+      <div class="info-item"><div class="info-lbl">Unit Code</div><div class="info-val mono">${unitCode}</div></div>
+      <div class="info-item"><div class="info-lbl">Primary Rock / Material</div><div class="info-val cap">${mainRock}</div></div>
+      <div class="info-item"><div class="info-lbl">Rock Classification</div><div class="info-val cap">${rockClass}</div></div>
+      <div class="info-item"><div class="info-lbl">Subsidiary Materials</div><div class="info-val cap">${subRocks}</div></div>
+      <div class="info-item"><div class="info-lbl">Geological Age</div><div class="info-val">${ageName}</div></div>
+      <div class="info-item"><div class="info-lbl">Absolute Age (Ma)</div><div class="info-val mono">${absMin} – ${absMax}</div></div>
+      <div class="info-item"><div class="info-lbl">QMAP Sheet</div><div class="info-val">${qmapSheet}</div></div>
+    </div>
+    ${description ? `<div class="geo-detail"><strong>GNS QMAP description:</strong><br>${description}</div>` : ''}
+  ` : `<div class="no-data-warn">
+    <strong>⚠ Geological data could not be retrieved</strong> — this is usually caused by CORS restrictions when running from a local file.
+    Try using the tool from a web server, or query the geology directly at
+    <a href="https://data.gns.cri.nz/geology/" target="_blank">data.gns.cri.nz/geology</a>.
+    The site classification, liquefaction, and foundation sections below are not available without geological data.
+  </div>`;
+
+  return `
+  <div class="report-header">
+    <button class="btn-print" onclick="window.print()">🖨 Print / Save PDF</button>
+    <div class="report-title">Geotechnical Desktop Assessment Report</div>
+    <div class="report-subtitle">Preliminary Screening — For Planning Purposes Only · Not for Engineering Design</div>
+    <div class="report-meta">
+      <div><span class="meta-lbl">Report Ref.</span><span class="meta-val">${refNo}</span></div>
+      <div><span class="meta-lbl">Date Prepared</span><span class="meta-val">${date}</span></div>
+      <div><span class="meta-lbl">Data Source</span><span class="meta-val">GNS Science ${layer}</span></div>
+    </div>
+  </div>
+
+  <div class="sc-banner">
+    <div class="sc-value">${siteClass}</div>
+    <div class="sc-info">
+      <div class="sc-label">NZS 1170.5:2004 Site Subsoil Class (indicative)</div>
+      <div class="sc-desc">${scDesc}
+        <span class="conf-tag conf-${scConf.toLowerCase()}">${scConf} confidence</span>
+      </div>
+      <div class="sc-standard">Used to determine seismic design loads — must be confirmed by subsurface investigation</div>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+  <!-- 1. Site Identification -->
+  <div class="section">
+    <div class="section-title">1 · Site Identification</div>
+    <div class="info-grid">
+      <div class="info-item"><div class="info-lbl">Input Address</div><div class="info-val">${inputAddr}</div></div>
+      <div class="info-item"><div class="info-lbl">Geocoded Result</div><div class="info-val" style="font-size:0.8rem;color:#5a6a7a">${displayAddr}</div></div>
+      <div class="info-item"><div class="info-lbl">Latitude (WGS84)</div><div class="info-val mono">${lat.toFixed(6)}°</div></div>
+      <div class="info-item"><div class="info-lbl">Longitude (WGS84)</div><div class="info-val mono">${lon.toFixed(6)}°</div></div>
+    </div>
+    <p class="footnote">Geocoding: OpenStreetMap / Nominatim (ODbL). Geology map overlay: GNS Science QMAP (CC-BY 3.0 NZ). Legend colours reflect the GNS QMAP standard.</p>
+  </div>
+
+  <!-- 2. Geology -->
+  <div class="section">
+    <div class="section-title">2 · Geology &amp; Stratigraphy</div>
+    ${geoBlock}
+    <p class="footnote">Source: <a href="https://www.gns.cri.nz/data-and-resources/geological-map-of-new-zealand/" target="_blank">GNS Science QMAP — Geological Map of New Zealand 1:250,000</a> (Crown Copyright, CC-BY 3.0 NZ).
+    Minimum map unit ~6 ha. Local variation may not be captured at this scale.</p>
+  </div>
+
+  <!-- 3. Site Subsoil Classification -->
+  <div class="section">
+    <div class="section-title">3 · Site Subsoil Classification — NZS 1170.5:2004</div>
+    <div class="info-grid" style="margin-bottom:12px">
+      <div class="info-item">
+        <div class="info-lbl">Indicative Site Class</div>
+        <div class="info-val" style="font-size:1.5rem;font-weight:900;color:#14325a;letter-spacing:-0.5px">${siteClass}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-lbl">NZS 3604:2011 Foundation Suitability</div>
+        <div class="info-val" style="font-size:0.83rem;line-height:1.4;margin-top:2px">${ggLabel}</div>
+      </div>
+    </div>
+    ${siteClassTable(siteClass)}
+    <p class="footnote" style="margin-top:8px">Site class definitions per NZS 1170.5:2004 Table 3.1. Vs = shear wave velocity; Cu = undrained shear strength.
+    The classification above is indicative from surface geology only and must be confirmed by in-situ testing (CPT, SPT, or Vs measurement).</p>
+  </div>
+
+  <!-- 4. Hazard Assessment -->
+  <div class="section">
+    <div class="section-title">4 · Geotechnical Hazard Assessment</div>
+    <div class="risk-rows">
+
+      <div class="risk-row">
+        <div class="risk-left">
+          <div class="risk-cat">Liquefaction</div>
+          <span class="badge ${liqBadge}">${liqRisk}</span>
+        </div>
+        <div class="risk-right">${liqDesc}</div>
+      </div>
+
+      <div class="risk-row">
+        <div class="risk-left">
+          <div class="risk-cat">Active Faults</div>
+          ${faultBadge}
+        </div>
+        <div class="risk-right">${faultText}</div>
+      </div>
+
+      <div class="risk-row">
+        <div class="risk-left">
+          <div class="risk-cat">Slope Instability</div>
+          <span class="badge bg-check">Inspect Required</span>
+        </div>
+        <div class="risk-right">
+          Slope stability cannot be assessed from geological mapping alone. A site inspection is required to identify landslide
+          features, erosion scarps, or rockfall hazard (NZS 4404:2010 cl. 5.3).
+          Check the <a href="https://landslides.gns.cri.nz/" target="_blank">NZ Landslide Database</a> and
+          council hazard maps for recorded landslides.
+        </div>
+      </div>
+
+      <div class="risk-row">
+        <div class="risk-left">
+          <div class="risk-cat">Flooding / Coastal</div>
+          <span class="badge bg-check">Check Required</span>
+        </div>
+        <div class="risk-right">
+          Flood hazard and coastal inundation risk are not assessed in this desktop study. Review territorial authority
+          flood hazard maps, NIWA national flood hazard data, and coastal inundation models. Rising sea levels may
+          affect coastal sites per the RMA National Policy Statement for Natural Hazards (2024).
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 5. Foundation Guidance -->
+  <div class="section">
+    <div class="section-title">5 · Foundation Guidance</div>
+    <div class="found-box">
+      <div class="found-type">${foundType}</div>
+      <div class="found-bearing"><strong>Indicative allowable bearing capacity:</strong> ${bearing}</div>
+      <div class="found-notes">${foundNotes}</div>
+    </div>
+    <p class="footnote" style="margin-top:10px">
+      NZS 3604:2011 defines <em>Good Ground</em> as soil or rock with allowable bearing capacity ≥ 300 kPa at 0.5 m below
+      formation level, groundwater ≥ 0.5 m below foundation, and slope ≤ 1:5. Sites not meeting this require specific
+      geotechnical foundation design per the Building Act 2004 and NZBC Clause B1.
+    </p>
+  </div>
+
+  <!-- 6. Further Investigation Requirements -->
+  <div class="section">
+    <div class="section-title">6 · Further Investigation &amp; Compliance Requirements</div>
+    <ul class="req-list">${reqHTML}</ul>
+    <p class="footnote" style="margin-top:12px">Requirements are indicative. Consult the relevant territorial authority for site-specific
+    consent conditions under the <strong>Building Act 2004</strong>, <strong>NZS 4404:2010</strong>,
+    <strong>NZS 1170.5:2004</strong>, <strong>NZS 3604:2011</strong>, and the Resource Management Act 1991.</p>
+  </div>
+
+  <!-- 7. Disclaimer -->
+  <div class="section">
+    <div class="section-title">7 · Disclaimer &amp; Limitations</div>
+    <div class="disclaimer">
+      <strong>IMPORTANT — PRELIMINARY DESKTOP ASSESSMENT ONLY.</strong><br><br>
+      This report is generated automatically from publicly available 1:250,000 scale geological mapping (GNS Science QMAP,
+      CC-BY 3.0 NZ) and must <strong>not</strong> be used for engineering design, foundation specification, building
+      consent applications, or property transaction decisions without verification by a
+      <strong>Chartered Professional Engineer (CPEng) with geotechnical expertise</strong>.<br><br>
+      The 1:250K QMAP dataset has a minimum map unit of approximately 6 hectares. Significant local variability in soil
+      conditions, depth to rock, groundwater, fill, or contamination cannot be captured at this scale. Subsurface
+      investigations (boreholes, CPT soundings, test pits, geophysical surveys) are required to characterise actual site
+      conditions.<br><br>
+      This assessment does <strong>not</strong> constitute a geotechnical site investigation under the Building Act 2004,
+      NZS 4404:2010, or any territorial authority geotechnical policy.
+      Site classification is indicative only and must be confirmed per NZS 1170.5:2004 clause 3.1 by a qualified
+      geotechnical engineer.<br><br>
+      <strong>Geological data:</strong> © GNS Science / Crown (CC-BY 3.0 NZ).
+      <strong>Geocoding:</strong> © OpenStreetMap contributors (ODbL).
+    </div>
+  </div>
+
+  <!-- 8. References -->
+  <div class="section">
+    <div class="section-title">8 · References</div>
+    <ul class="ref-list">
+      <li>Building Act 2004 (New Zealand)</li>
+      <li>NZS 1170.5:2004 — Structural Design Actions: Earthquake Actions New Zealand</li>
+      <li>NZS 3604:2011 — Timber-framed Buildings</li>
+      <li>NZS 4404:2010 — Land Development and Subdivision Infrastructure</li>
+      <li>NZS 8510:2023 — Assessment and Design of Buildings for Fault Rupture Hazard</li>
+      <li>MBIE (2017) — Guidance: Geotechnical Earthquake Engineering for Liquefaction</li>
+      <li>GNS Science QMAP — Geological Map of New Zealand 1:250,000 (quaketables.gns.cri.nz)</li>
+      <li>GNS Science NZAFD — New Zealand Active Faults Database (maps.gns.cri.nz)</li>
+      <li>GNS Science NZGD — New Zealand Geotechnical Database (nzgd.org.nz)</li>
+      <li>Resource Management Act 1991 — s106 Natural Hazard provisions</li>
+    </ul>
+  </div>
+  `;
+}
+
+// ─────────────────────────────────────────────
+//  8. Main entry point
+// ─────────────────────────────────────────────
+async function generateReport() {
+  const address = document.getElementById('addressInput').value.trim();
+  if (!address) { alert('Please enter a New Zealand address.'); return; }
+
+  // Reset UI
+  hideError();
+  document.getElementById('report').classList.add('hidden');
+  document.getElementById('searchBtn').disabled = true;
+
+  try {
+    setLoading('Geocoding address…');
+    const geo = await geocode(address);
+    const lat = parseFloat(geo.lat);
+    const lon = parseFloat(geo.lon);
+
+    setLoading('Querying GNS Science geology data…');
+    const geolResult = await queryGeology(lat, lon);
+
+    setLoading('Querying nearby fault data…');
+    const faults = await queryFaults(lat, lon);
+
+    setLoading('Building report…');
+    const refNo = generateRef();
+    const date  = fmtDate();
+
+    const reportDiv = document.getElementById('report');
+    reportDiv.innerHTML = buildReport(refNo, date, address, geo.display_name, lat, lon, geolResult, faults);
+    reportDiv.classList.remove('hidden');
+
+    hideLoading();
+
+    // Scroll to report
+    setTimeout(() => {
+      reportDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      initMap(lat, lon);
+    }, 80);
+
+  } catch(err) {
+    hideLoading();
+    showError(err.message || 'An unexpected error occurred. Please try again.');
+  } finally {
+    document.getElementById('searchBtn').disabled = false;
+  }
+}
+</script>
+</body>
+</html>
