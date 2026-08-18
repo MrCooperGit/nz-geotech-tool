@@ -571,6 +571,11 @@ async function geocode(address) {
 // ─────────────────────────────────────────────
 //  2. GNS Science QMAP WFS query
 // ─────────────────────────────────────────────
+// CORS proxy — GNS WFS does not send CORS headers; route via corsproxy.io
+function gnsProxy(url) {
+  return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+}
+
 async function queryGeology(lat, lon) {
   const layers = [
     { id: 'gns:NZL_GNS_250K_geological_units_scale500k', label: 'QMAP 1:250,000' },
@@ -582,7 +587,8 @@ async function queryGeology(lat, lon) {
   for (const layer of layers) {
     for (const delta of deltas) {
       const bbox = `${lon-delta},${lat-delta},${lon+delta},${lat+delta},EPSG:4326`;
-      const url = `${base}?service=WFS&version=1.0.0&request=GetFeature&typeName=${layer.id}&outputFormat=application/json&bbox=${bbox}`;
+      const rawUrl = `${base}?service=WFS&version=1.0.0&request=GetFeature&typeName=${layer.id}&outputFormat=application/json&bbox=${bbox}`;
+      const url = gnsProxy(rawUrl);
       try {
         const r = await fetch(url, { headers: { Accept: 'application/json' } });
         if (!r.ok) continue;
@@ -615,7 +621,8 @@ async function queryGeology(lat, lon) {
 async function queryFaults(lat, lon) {
   const delta = 0.045; // ~5 km
   const bbox = `${lon-delta},${lat-delta},${lon+delta},${lat+delta},EPSG:4326`;
-  const url = `https://maps.gns.cri.nz/geology/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=gns:NZL_GNS_250K_faults_plotrank&outputFormat=application/json&bbox=${bbox}`;
+  const rawUrl = `https://maps.gns.cri.nz/geology/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=gns:NZL_GNS_250K_faults_plotrank&outputFormat=application/json&bbox=${bbox}`;
+  const url = gnsProxy(rawUrl);
   try {
     const r = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!r.ok) return null;
