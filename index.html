@@ -571,9 +571,9 @@ async function geocode(address) {
 // ─────────────────────────────────────────────
 //  2. GNS Science QMAP WFS query
 // ─────────────────────────────────────────────
-// CORS proxy — GNS WFS does not send CORS headers; route via corsproxy.io
+// CORS proxy — GNS WFS does not send CORS headers; route via proxy.cors.sh
 function gnsProxy(url) {
-  return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+  return `https://proxy.cors.sh/${url}`;
 }
 
 async function queryGeology(lat, lon) {
